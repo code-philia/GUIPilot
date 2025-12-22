@@ -15,8 +15,10 @@ if typing.TYPE_CHECKING:
     from guipilot.matcher import WidgetMatcher
 
 
-ocr = OCR(service_url="http://localhost:5000/detect")
-detector = Detector(service_url="http://localhost:6000/detect")
+# ocr = OCR(service_url="http://localhost:5000/detect")
+# detector = Detector(service_url="http://localhost:6000/detect")
+ocr = OCR()
+detector = Detector()
 
 
 @dataclass
