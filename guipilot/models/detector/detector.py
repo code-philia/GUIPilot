@@ -8,6 +8,8 @@ import numpy as np
 from ultralytics import YOLO
 from ultralytics.engine.results import Results
 
+from .. import model_manager
+
 
 class Detector():
     def __init__(self, service_url: str = None) -> None:
@@ -16,7 +18,22 @@ class Detector():
         if service_url is None:
             device = "cuda" if torch.cuda.is_available() else "cpu"
             base_path = os.path.dirname(os.path.abspath(__file__))
-            self.detector = YOLO(f"{base_path}/best.pt").to(device)
+            # default weights filename next to this file
+            weights_path = os.path.join(base_path, "best.pt")
+            # allow override via env vars: GUIPILOT_DETECTOR_HF_REPO / GUIPILOT_DETECTOR_HF_FILE
+            repo = os.environ.get("GUIPILOT_DETECTOR_HF_REPO")
+            hf_file = os.environ.get("GUIPILOT_DETECTOR_HF_FILE")
+
+            try:
+                # ensure_detector_weights returns the actual path where the model was saved
+                downloaded = model_manager.ensure_detector_weights(target_path=weights_path, hf_repo=repo, hf_filename=hf_file)
+                weights_path = downloaded or weights_path
+            except Exception as e:
+                # If download fails, fall back to package-local best.pt (may raise later when loading)
+                print("Model download/ensure failed:", e)
+
+            print(f"Loading detector weights from: {weights_path}")
+            self.detector = YOLO(weights_path).to(device)
 
     def _local(self, image: np.ndarray) -> tuple[list, list]:
         results: list[Results] = self.detector(image, verbose=False)
