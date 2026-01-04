@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 import typing
 from abc import ABC, abstractmethod
 from timeit import default_timer as timer
@@ -6,16 +7,18 @@ from timeit import default_timer as timer
 import numpy as np
 
 if typing.TYPE_CHECKING:
-    from guipilot.entities import Widget, Screen
+    from guipilot.entities import Screen, Widget
 
 
 class ScreenChecker(ABC):
-    def check(self, screen_i: Screen, screen_j: Screen, pairs: list[tuple[int, int]]) -> tuple[set, float]:
+    def check(
+        self, screen_i: Screen, screen_j: Screen, pairs: list[tuple[int, int]]
+    ) -> tuple[set, float]:
         """Checks for widget inconsistencies on two screens.
 
         Args:
             screen_i, screen_j: two screens containing a list of widgets to compare
-            pairs: a list of tuples, where each tuple `(x, y)` represents a pair of matching 
+            pairs: a list of tuples, where each tuple `(x, y)` represents a pair of matching
             widget IDs. `x` is from `screen_i` and `y` is from `screen_j`.
 
         Returns:
@@ -44,7 +47,9 @@ class ScreenChecker(ABC):
             xmin, ymin, xmax, ymax = widget_j.bbox
             widget_image_j = screen_j.image[ymin:ymax, xmin:xmax]
 
-            inconsistencies = self.check_widget_pair(widget_i, widget_j, widget_image_i, widget_image_j)
+            inconsistencies = self.check_widget_pair(
+                widget_i, widget_j, widget_image_i, widget_image_j
+            )
             result.update([(x, y, k) for k in inconsistencies])
 
         result.update([(id, None) for id in unpaired_i])
@@ -53,7 +58,9 @@ class ScreenChecker(ABC):
         return result, int(time)
 
     @abstractmethod
-    def check_widget_pair(self, w1: Widget, w2: Widget, wi1: np.ndarray, wi2: np.ndarray) -> list[tuple]:
+    def check_widget_pair(
+        self, w1: Widget, w2: Widget, wi1: np.ndarray, wi2: np.ndarray
+    ) -> list[tuple]:
         """Check if a pair of widgets are consistent.
 
         Args:
@@ -63,4 +70,3 @@ class ScreenChecker(ABC):
         Returns:
             A list of tuples, see check() for explanation.
         """
-        pass

@@ -1,0 +1,13 @@
+[run]
+source = guipilot
+
+[report]
+omit =
+    tests/*
+    */site-packages/*
+    */__pycache__/*
+
+[paths]
+source =
+    guipilot
+    experiments

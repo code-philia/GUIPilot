@@ -55,7 +55,7 @@ Each directory within `/experiments` includes a `README.md` file that provides d
 
 ## 🏃 Usage
 
-Refer to [`/experiments/rq1_screen_inconsistency/main.py`](../experiments/rq1_screen_inconsistency/main.py) for a complete working example.
+Refer to [`/experiments/rq1_screen_inconsistency/main.py`](./experiments/rq1_screen_inconsistency/main.py) for a complete working example.
 
 ### Step 1: Load Screenshots as `Screen` Instances
 

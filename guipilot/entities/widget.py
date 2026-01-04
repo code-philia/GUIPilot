@@ -1,7 +1,8 @@
 from __future__ import annotations
+
 import typing
-from enum import Enum
 from dataclasses import dataclass, field
+from enum import Enum
 
 if typing.TYPE_CHECKING:
     from .constants import Bbox
@@ -28,15 +29,15 @@ class Widget:
     @property
     def width(self) -> float:
         return self.bbox.xmax - self.bbox.xmin
-    
+
     @property
     def height(self) -> float:
         return self.bbox.ymax - self.bbox.ymin
-    
+
     @property
     def area(self) -> float:
         return self.width * self.height
-    
+
     @property
     def center(self) -> tuple[float, float]:
         cx = (self.bbox.xmin + self.bbox.xmax) / 2

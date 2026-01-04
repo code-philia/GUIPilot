@@ -1,22 +1,23 @@
-import os
-import json
 import copy
+import json
+import os
 
 import cv2
 import numpy as np
 import supervision as sv
 from supervision import Detections
 
-from guipilot.entities import (
-    Bbox,
-    WidgetType,
-    Widget,
-    Screen,
-    Inconsistency
-)
+from guipilot.entities import Bbox, Inconsistency, Screen, Widget, WidgetType
 
 
-def visualize_inconsistencies(s1: Screen, s2: Screen, pairs: list[tuple], inconsistencies: list[tuple], path: str, filename: str):
+def visualize_inconsistencies(
+    s1: Screen,
+    s2: Screen,
+    pairs: list[tuple],
+    inconsistencies: list[tuple],
+    path: str,
+    filename: str,
+):
     def _get_one_image(img_list: list[np.ndarray]):
         max_height = 0
         total_width = 0  # padding
@@ -31,17 +32,31 @@ def visualize_inconsistencies(s1: Screen, s2: Screen, pairs: list[tuple], incons
         current_x = 0  # keep track of where your current image was last placed in the y coordinate
         for image in img_list:
             # add an image to the final array and increment the y coordinate
-            image = np.vstack((image, np.zeros((max_height - image.shape[0], image.shape[1], 3))))
-            final_image[:, current_x:current_x + image.shape[1], :] = image
+            image = np.vstack(
+                (image, np.zeros((max_height - image.shape[0], image.shape[1], 3)))
+            )
+            final_image[:, current_x : current_x + image.shape[1], :] = image
             current_x += image.shape[1]
         return final_image
 
     annotators = [
-        sv.BoxAnnotator(color=sv.Color.GREEN, thickness=2, color_lookup=sv.ColorLookup.INDEX),
-        sv.BoxAnnotator(color=sv.Color.YELLOW, thickness=2, color_lookup=sv.ColorLookup.INDEX),
-        sv.BoxAnnotator(color=sv.Color.RED, thickness=2, color_lookup=sv.ColorLookup.INDEX)
+        sv.BoxAnnotator(
+            color=sv.Color.GREEN, thickness=2, color_lookup=sv.ColorLookup.INDEX
+        ),
+        sv.BoxAnnotator(
+            color=sv.Color.YELLOW, thickness=2, color_lookup=sv.ColorLookup.INDEX
+        ),
+        sv.BoxAnnotator(
+            color=sv.Color.RED, thickness=2, color_lookup=sv.ColorLookup.INDEX
+        ),
     ]
-    label_annotator = sv.LabelAnnotator(color=sv.Color.BLACK, text_color=sv.Color.WHITE, color_lookup=sv.ColorLookup.INDEX, text_position=sv.Position.TOP_LEFT, text_padding=1)
+    label_annotator = sv.LabelAnnotator(
+        color=sv.Color.BLACK,
+        text_color=sv.Color.WHITE,
+        color_lookup=sv.ColorLookup.INDEX,
+        text_position=sv.Position.TOP_LEFT,
+        text_padding=1,
+    )
 
     s1_bboxes = {"paired": {}, "paired_inconsistent": {}, "unpaired": {}}
     s2_bboxes = {"paired": {}, "paired_inconsistent": {}, "unpaired": {}}
@@ -49,19 +64,42 @@ def visualize_inconsistencies(s1: Screen, s2: Screen, pairs: list[tuple], incons
     paired_inconsistent = set()
     for inconsistency in inconsistencies:
         id1, id2 = inconsistency[:2]
-        if id1 is not None: xmin1, ymin1, xmax1, ymax1 = s1.widgets[id1].bbox
-        if id2 is not None: xmin2, ymin2, xmax2, ymax2 = s2.widgets[id2].bbox
+        if id1 is not None:
+            xmin1, ymin1, xmax1, ymax1 = s1.widgets[id1].bbox
+        if id2 is not None:
+            xmin2, ymin2, xmax2, ymax2 = s2.widgets[id2].bbox
         if id1 is not None and id2 is not None:
-            s1_bboxes["paired_inconsistent"][id1] = [int(xmin1), int(ymin1), int(xmax1), int(ymax1)]
-            s2_bboxes["paired_inconsistent"][id2] = [int(xmin2), int(ymin2), int(xmax2), int(ymax2)]
+            s1_bboxes["paired_inconsistent"][id1] = [
+                int(xmin1),
+                int(ymin1),
+                int(xmax1),
+                int(ymax1),
+            ]
+            s2_bboxes["paired_inconsistent"][id2] = [
+                int(xmin2),
+                int(ymin2),
+                int(xmax2),
+                int(ymax2),
+            ]
             paired_inconsistent.add((id1, id2))
         elif id1 is not None:
-            s1_bboxes["unpaired"][id1] = [int(xmin1), int(ymin1), int(xmax1), int(ymax1)]
+            s1_bboxes["unpaired"][id1] = [
+                int(xmin1),
+                int(ymin1),
+                int(xmax1),
+                int(ymax1),
+            ]
         elif id2 is not None:
-            s2_bboxes["unpaired"][id2] = [int(xmin2), int(ymin2), int(xmax2), int(ymax2)]
+            s2_bboxes["unpaired"][id2] = [
+                int(xmin2),
+                int(ymin2),
+                int(xmax2),
+                int(ymax2),
+            ]
 
     for pair in pairs:
-        if pair in paired_inconsistent: continue
+        if pair in paired_inconsistent:
+            continue
         id1, id2 = pair
         xmin1, ymin1, xmax1, ymax1 = s1.widgets[id1].bbox
         xmin2, ymin2, xmax2, ymax2 = s2.widgets[id2].bbox
@@ -70,17 +108,23 @@ def visualize_inconsistencies(s1: Screen, s2: Screen, pairs: list[tuple], incons
 
     s1_image = copy.deepcopy(s1.image)
     for (name, bboxes), annotator in zip(s1_bboxes.items(), annotators):
-        if len(bboxes) == 0: continue
+        if len(bboxes) == 0:
+            continue
         detections = Detections(np.array([bbox for bbox in bboxes.values()]))
         annotator.annotate(s1_image, detections)
-        label_annotator.annotate(s1_image, detections, labels=[f"{i}" for i in bboxes.keys()])
+        label_annotator.annotate(
+            s1_image, detections, labels=[f"{i}" for i in bboxes.keys()]
+        )
 
     s2_image = copy.deepcopy(s2.image)
     for (name, bboxes), annotator in zip(s2_bboxes.items(), annotators):
-        if len(bboxes) == 0: continue
+        if len(bboxes) == 0:
+            continue
         detections = Detections(np.array([bbox for bbox in bboxes.values()]))
         annotator.annotate(s2_image, detections)
-        label_annotator.annotate(s2_image, detections, labels=[f"{i}" for i in bboxes.keys()])
+        label_annotator.annotate(
+            s2_image, detections, labels=[f"{i}" for i in bboxes.keys()]
+        )
 
     os.makedirs(f"./visualize/{path}", exist_ok=True)
     image = _get_one_image([s1_image, s2_image])
@@ -88,20 +132,22 @@ def visualize_inconsistencies(s1: Screen, s2: Screen, pairs: list[tuple], incons
 
 
 def remove_overlapping_widgets(widgets: dict[int, Widget]) -> dict[int, Widget]:
-    """Pre-processing: Filter out overlapping widgets
-    """
+    """Pre-processing: Filter out overlapping widgets"""
+
     def is_contained(bbox1: Bbox, bbox2: Bbox):
-        """Check if bbox1 is completely inside bbox2.
-        """
+        """Check if bbox1 is completely inside bbox2."""
         x1_min, y1_min, x1_max, y1_max = bbox1
         x2_min, y2_min, x2_max, y2_max = bbox2
 
-        return (x1_min >= x2_min and y1_min >= y2_min and
-                x1_max <= x2_max and y1_max <= y2_max)
-    
+        return (
+            x1_min >= x2_min
+            and y1_min >= y2_min
+            and x1_max <= x2_max
+            and y1_max <= y2_max
+        )
+
     def is_high_iou(bbox1: Bbox, bbox2: Bbox):
-        """Check if bboxes have IOU above threshold.
-        """
+        """Check if bboxes have IOU above threshold."""
         xa, ya = max(bbox1[0], bbox2[0]), max(bbox1[1], bbox2[1])
         xb, yb = min(bbox1[2], bbox2[2]), min(bbox1[3], bbox2[3])
         intersection = abs(max((xb - xa, 0)) * max((yb - ya), 0))
@@ -115,20 +161,23 @@ def remove_overlapping_widgets(widgets: dict[int, Widget]) -> dict[int, Widget]:
     for i, widget_i in widgets.items():
         contained = False
         for j, widget_j in widgets.items():
-            if i == j: continue
-            if is_contained(widget_i.bbox, widget_j.bbox) or is_high_iou(widget_i.bbox, widget_j.bbox):
+            if i == j:
+                continue
+            if is_contained(widget_i.bbox, widget_j.bbox) or is_high_iou(
+                widget_i.bbox, widget_j.bbox
+            ):
                 contained = True
                 break
 
-        if not contained: refined.append(widget_i)
+        if not contained:
+            refined.append(widget_i)
 
     return {i: widget for i, widget in enumerate(refined)}
 
 
 def load_screen(image_path: str) -> Screen:
     def _points_to_bbox(points: list[list[int, int]]) -> Bbox:
-        """Pre-processing: Convert unordered points to bounding boxes
-        """
+        """Pre-processing: Convert unordered points to bounding boxes"""
         p1 = points[0]
         p2 = points[1]
         xmin, xmax = min(p1[0], p2[0]), max(p1[0], p2[0])
@@ -141,16 +190,15 @@ def load_screen(image_path: str) -> Screen:
     image = cv2.imread(image_path)
     bboxes = [_points_to_bbox(shape["points"]) for shape in label["shapes"]]
     labels = [WidgetType(shape["label"]) for shape in label["shapes"]]
-    sorted_indices = np.lexsort(([bbox.xmin for bbox in bboxes], [bbox.ymin for bbox in bboxes])) 
+    sorted_indices = np.lexsort(
+        ([bbox.xmin for bbox in bboxes], [bbox.ymin for bbox in bboxes])
+    )
     sorted_bboxes = [bboxes[i] for i in sorted_indices]
     sorted_labels = [labels[i] for i in sorted_indices]
 
     # Prepare screen its and widgets
     widgets = {
-        i: Widget( 
-            type=widget_type, 
-            bbox=bbox
-        ) 
+        i: Widget(type=widget_type, bbox=bbox)
         for i, (widget_type, bbox) in enumerate(zip(sorted_labels, sorted_bboxes))
     }
     widgets = remove_overlapping_widgets(widgets)
@@ -159,9 +207,13 @@ def load_screen(image_path: str) -> Screen:
 
 def filter_swapped_predictions(y_pred: set, y_true: set, s1: Screen, s2: Screen) -> set:
     def _bbox_overlap(bbox1, bbox2):
-        return not (bbox1[2] < bbox2[0] or bbox2[2] < bbox1[0] or
-                    bbox1[3] < bbox2[1] or bbox2[3] < bbox1[1])
-    
+        return not (
+            bbox1[2] < bbox2[0]
+            or bbox2[2] < bbox1[0]
+            or bbox1[3] < bbox2[1]
+            or bbox2[3] < bbox1[1]
+        )
+
     y_pred = copy.deepcopy(y_pred)
 
     for item in y_true:
@@ -172,13 +224,15 @@ def filter_swapped_predictions(y_pred: set, y_true: set, s1: Screen, s2: Screen)
 
         # (x, None), (y, y, bbox), (None, x) -> (x, y, bbox), (y, x, bbox)
         if all([x in y_pred for x in alternative1]):
-            for x in alternative1: y_pred.discard(x)
+            for x in alternative1:
+                y_pred.discard(x)
             y_pred.add((id1, id2, Inconsistency.BBOX))
             y_pred.add((id2, id1, Inconsistency.BBOX))
 
         # (y, None), (x, x, bbox), (None, y) -> (x, y, bbox), (y, x, bbox)
         if all([x in y_pred for x in alternative2]):
-            for x in alternative2: y_pred.discard(x)
+            for x in alternative2:
+                y_pred.discard(x)
             y_pred.add((id1, id2, Inconsistency.BBOX))
             y_pred.add((id2, id1, Inconsistency.BBOX))
 
@@ -195,7 +249,8 @@ def filter_swapped_predictions(y_pred: set, y_true: set, s1: Screen, s2: Screen)
     swapped_ids = [item[1] for item in y_true]
     for item in y_pred:
         id1 = item[1]
-        if id1 is None or id1 in swapped_ids: continue
+        if id1 is None or id1 in swapped_ids:
+            continue
         for swapped_id in swapped_ids:
             if _bbox_overlap(s2.widgets[id1].bbox, s2.widgets[swapped_id].bbox):
                 overlap_ids.add(id1)
@@ -203,7 +258,8 @@ def filter_swapped_predictions(y_pred: set, y_true: set, s1: Screen, s2: Screen)
     swapped_ids = [item[0] for item in y_true]
     for item in y_pred:
         id1 = item[0]
-        if id1 is None or id1 in swapped_ids: continue
+        if id1 is None or id1 in swapped_ids:
+            continue
         for swapped_id in swapped_ids:
             if _bbox_overlap(s1.widgets[id1].bbox, s1.widgets[swapped_id].bbox):
                 overlap_ids.add(id1)
@@ -217,14 +273,18 @@ def filter_swapped_predictions(y_pred: set, y_true: set, s1: Screen, s2: Screen)
 
 
 def filter_overlap_predictions(y_pred: set, y_true: set, s1: Screen, s2: Screen) -> set:
-    """Ignore those child/parent widgets affected (overlap) by the ground truth mutated widget
-    """
+    """Ignore those child/parent widgets affected (overlap) by the ground truth mutated widget"""
+
     def _bbox_overlap(bbox1, bbox2):
-        return not (bbox1[2] < bbox2[0] or bbox2[2] < bbox1[0] or
-                    bbox1[3] < bbox2[1] or bbox2[3] < bbox1[1])
-    
+        return not (
+            bbox1[2] < bbox2[0]
+            or bbox2[2] < bbox1[0]
+            or bbox1[3] < bbox2[1]
+            or bbox2[3] < bbox1[1]
+        )
+
     overlap_ids = set()
-    if s1 is not None: 
+    if s1 is not None:
         mutated_ids = [item[0] for item in y_true]
         s = s1
 
@@ -234,8 +294,10 @@ def filter_overlap_predictions(y_pred: set, y_true: set, s1: Screen, s2: Screen)
 
     for item in y_pred:
         id1, id2 = item[0], item[1]
-        if id1 != id2: continue
-        if id1 in mutated_ids: continue
+        if id1 != id2:
+            continue
+        if id1 in mutated_ids:
+            continue
         for id in mutated_ids:
             if _bbox_overlap(s.widgets[id].bbox, s.widgets[id1].bbox):
                 overlap_ids.add(id1)
@@ -249,8 +311,7 @@ def filter_overlap_predictions(y_pred: set, y_true: set, s1: Screen, s2: Screen)
 
 
 def filter_text(y_pred: set, y_true: set, s1: Screen, s2: Screen) -> set:
-    """For change widgets color, ignore text inconsistencies
-    """
+    """For change widgets color, ignore text inconsistencies"""
     y_pred = filter_overlap_predictions(y_pred, y_true, s1, s2)
     target_ids = set([item[0] for item in y_true])
 
@@ -261,8 +322,7 @@ def filter_text(y_pred: set, y_true: set, s1: Screen, s2: Screen) -> set:
 
 
 def filter_color(y_pred: set, y_true: set, s1: Screen, s2: Screen) -> set:
-    """For change widgets text, ignore color inconsistencies
-    """
+    """For change widgets text, ignore color inconsistencies"""
     y_pred = filter_overlap_predictions(y_pred, y_true, s1, s2)
     target_ids = set([item[0] for item in y_true])
 
@@ -296,10 +356,10 @@ def convert_inconsistencies(inconsistencies: set) -> tuple[set, set]:
         id1, id2 = inconsistency[0], inconsistency[1]
         i_type = inconsistency[2] if len(inconsistency) > 2 else None
 
-        if id1 is None: 
+        if id1 is None:
             result.add(("insert", id2))
 
-        elif id2 is None: 
+        elif id2 is None:
             result.add(("delete", id1))
 
         elif i_type == Inconsistency.COLOR:
@@ -308,7 +368,7 @@ def convert_inconsistencies(inconsistencies: set) -> tuple[set, set]:
         elif i_type == Inconsistency.TEXT:
             result.add(("substitute.text", id1, id2))
 
-        elif i_type == Inconsistency.BBOX and (id2, id1, i_type) in inconsistencies: 
+        elif i_type == Inconsistency.BBOX and (id2, id1, i_type) in inconsistencies:
             result.add(("substitute.swap", id1, id2))
 
         elif i_type == Inconsistency.BBOX:

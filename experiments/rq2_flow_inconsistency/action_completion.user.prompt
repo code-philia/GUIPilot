@@ -1,9 +1,9 @@
 Given the current screen and description,
-Please provide the next immediate correct action 
+Please provide the next immediate correct action
 
 ## Guidelines
 1. You should provide ONE Python action, DO NOT explain, DO NOT use natural language description.
-2. If you're asked to type, just use send_keys(), DO NOT click input box. 
+2. If you're asked to type, just use send_keys(), DO NOT click input box.
 3. This is NOT Selenium, Puppeteer, or Playwright. DO NOT use driver.
 
 Action description: {ACTION_DESCRIPTION}

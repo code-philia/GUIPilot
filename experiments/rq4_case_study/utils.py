@@ -1,26 +1,25 @@
+import copy
+import json
 import os
 import re
-import json
-import copy
 from functools import partial
-from typing import Iterable
 from timeit import default_timer as timer
+from typing import Iterable
 
 import cv2
 import jsbeautifier
 import numpy as np
 import supervision as sv
+from actions import Translator
 from PIL import Image
 from supervision import Detections
 
-from actions import Translator
 from guipilot.agent import Agent
 from guipilot.entities import Screen
 from guipilot.matcher import WidgetMatcher
-from guipilot.entities import Screen
 
 
-def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
+def image_resize(image, width=None, height=None, inter=cv2.INTER_AREA):
     # initialize the dimensions of the image to be resized and
     # grab the image size
     dim = None
@@ -46,7 +45,7 @@ def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
         dim = (width, int(h * r))
 
     # resize the image
-    resized = cv2.resize(image, dim, interpolation = inter)
+    resized = cv2.resize(image, dim, interpolation=inter)
 
     # return the resized image
     return resized
@@ -62,7 +61,9 @@ def get_screen(process_path: str, filename: str) -> Screen:
     return screen
 
 
-def get_scores(mock: Screen, real: Screen, matcher: WidgetMatcher) -> tuple[list, float, float]:
+def get_scores(
+    mock: Screen, real: Screen, matcher: WidgetMatcher
+) -> tuple[list, float, float]:
     """Get consistency scores for the current (real) screen as compared to mock screen.
 
     Args:
@@ -108,8 +109,8 @@ def get_action_completion(agent: Agent, screen: Screen, mock_actions: list[str])
             
         if not isinstance(param_list, tuple):
             param_list = (param_list,)
-            
-        if method is not None: 
+
+        if method is not None:
             action = partial(method, *param_list)
             actions.append(action)
             action_names.append(method_name)
@@ -119,7 +120,16 @@ def get_action_completion(agent: Agent, screen: Screen, mock_actions: list[str])
     return image, action_names, actions_raw, actions, response
 
 
-def get_report(process_id, screen_id, match_time, check_time, pairs, inconsistencies, action_correct, action_trials) -> str:
+def get_report(
+    process_id,
+    screen_id,
+    match_time,
+    check_time,
+    pairs,
+    inconsistencies,
+    action_correct,
+    action_trials,
+) -> str:
     mapping: dict[tuple, list] = {}
     for inc in inconsistencies:
         if len(inc) == 3:
@@ -133,14 +143,18 @@ def get_report(process_id, screen_id, match_time, check_time, pairs, inconsisten
         "pairs": [
             {
                 "ids": [id1, id2],
-                **({"inconsistencies": mapping[(id1, id2)]} if (id1, id2) in mapping else {})
+                **(
+                    {"inconsistencies": mapping[(id1, id2)]}
+                    if (id1, id2) in mapping
+                    else {}
+                ),
             }
             for (id1, id2) in pairs
         ],
         "missing": sorted([inc[0] for inc in inconsistencies if inc[1] is None]),
         "extra": sorted([inc[1] for inc in inconsistencies if inc[0] is None]),
         "action_correct": action_correct,
-        "action_trials": action_trials
+        "action_trials": action_trials,
     }
 
     options = jsbeautifier.default_options()
@@ -148,7 +162,9 @@ def get_report(process_id, screen_id, match_time, check_time, pairs, inconsisten
     return jsbeautifier.beautify(json.dumps(report, ensure_ascii=False), options)
 
 
-def visualize(s1: Screen, s2: Screen, pairs: list[tuple], inconsistencies: list[tuple]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def visualize(
+    s1: Screen, s2: Screen, pairs: list[tuple], inconsistencies: list[tuple]
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     def _get_one_image(img_list: list[np.ndarray]):
         max_height = 0
         total_width = 0  # padding
@@ -163,17 +179,31 @@ def visualize(s1: Screen, s2: Screen, pairs: list[tuple], inconsistencies: list[
         current_x = 0  # keep track of where your current image was last placed in the y coordinate
         for image in img_list:
             # add an image to the final array and increment the y coordinate
-            image = np.vstack((image, np.zeros((max_height - image.shape[0], image.shape[1], 3))))
-            final_image[:, current_x:current_x + image.shape[1], :] = image
+            image = np.vstack(
+                (image, np.zeros((max_height - image.shape[0], image.shape[1], 3)))
+            )
+            final_image[:, current_x : current_x + image.shape[1], :] = image
             current_x += image.shape[1]
         return final_image
 
     annotators = [
-        sv.BoxAnnotator(color=sv.Color.GREEN, thickness=2, color_lookup=sv.ColorLookup.INDEX),
-        sv.BoxAnnotator(color=sv.Color.YELLOW, thickness=2, color_lookup=sv.ColorLookup.INDEX),
-        sv.BoxAnnotator(color=sv.Color.RED, thickness=2, color_lookup=sv.ColorLookup.INDEX)
+        sv.BoxAnnotator(
+            color=sv.Color.GREEN, thickness=2, color_lookup=sv.ColorLookup.INDEX
+        ),
+        sv.BoxAnnotator(
+            color=sv.Color.YELLOW, thickness=2, color_lookup=sv.ColorLookup.INDEX
+        ),
+        sv.BoxAnnotator(
+            color=sv.Color.RED, thickness=2, color_lookup=sv.ColorLookup.INDEX
+        ),
     ]
-    label_annotator = sv.LabelAnnotator(color=sv.Color.BLACK, text_color=sv.Color.WHITE, color_lookup=sv.ColorLookup.INDEX, text_position=sv.Position.TOP_LEFT, text_padding=1)
+    label_annotator = sv.LabelAnnotator(
+        color=sv.Color.BLACK,
+        text_color=sv.Color.WHITE,
+        color_lookup=sv.ColorLookup.INDEX,
+        text_position=sv.Position.TOP_LEFT,
+        text_padding=1,
+    )
 
     s1_bboxes = {"paired": {}, "paired_inconsistent": {}, "unpaired": {}}
     s2_bboxes = {"paired": {}, "paired_inconsistent": {}, "unpaired": {}}
@@ -181,19 +211,42 @@ def visualize(s1: Screen, s2: Screen, pairs: list[tuple], inconsistencies: list[
     paired_inconsistent = set()
     for inconsistency in inconsistencies:
         id1, id2 = inconsistency[:2]
-        if id1 is not None: xmin1, ymin1, xmax1, ymax1 = s1.widgets[id1].bbox
-        if id2 is not None: xmin2, ymin2, xmax2, ymax2 = s2.widgets[id2].bbox
+        if id1 is not None:
+            xmin1, ymin1, xmax1, ymax1 = s1.widgets[id1].bbox
+        if id2 is not None:
+            xmin2, ymin2, xmax2, ymax2 = s2.widgets[id2].bbox
         if id1 is not None and id2 is not None:
-            s1_bboxes["paired_inconsistent"][id1] = [int(xmin1), int(ymin1), int(xmax1), int(ymax1)]
-            s2_bboxes["paired_inconsistent"][id2] = [int(xmin2), int(ymin2), int(xmax2), int(ymax2)]
+            s1_bboxes["paired_inconsistent"][id1] = [
+                int(xmin1),
+                int(ymin1),
+                int(xmax1),
+                int(ymax1),
+            ]
+            s2_bboxes["paired_inconsistent"][id2] = [
+                int(xmin2),
+                int(ymin2),
+                int(xmax2),
+                int(ymax2),
+            ]
             paired_inconsistent.add((id1, id2))
         elif id1 is not None:
-            s1_bboxes["unpaired"][id1] = [int(xmin1), int(ymin1), int(xmax1), int(ymax1)]
+            s1_bboxes["unpaired"][id1] = [
+                int(xmin1),
+                int(ymin1),
+                int(xmax1),
+                int(ymax1),
+            ]
         elif id2 is not None:
-            s2_bboxes["unpaired"][id2] = [int(xmin2), int(ymin2), int(xmax2), int(ymax2)]
+            s2_bboxes["unpaired"][id2] = [
+                int(xmin2),
+                int(ymin2),
+                int(xmax2),
+                int(ymax2),
+            ]
 
     for pair in pairs:
-        if pair in paired_inconsistent: continue
+        if pair in paired_inconsistent:
+            continue
         id1, id2 = pair
         xmin1, ymin1, xmax1, ymax1 = s1.widgets[id1].bbox
         xmin2, ymin2, xmax2, ymax2 = s2.widgets[id2].bbox
@@ -202,21 +255,27 @@ def visualize(s1: Screen, s2: Screen, pairs: list[tuple], inconsistencies: list[
 
     s1_image = copy.deepcopy(s1.image)
     for (_, bboxes), annotator in zip(s1_bboxes.items(), annotators):
-        if len(bboxes) == 0: continue
+        if len(bboxes) == 0:
+            continue
         detections = Detections(np.array([bbox for bbox in bboxes.values()]))
         annotator.annotate(s1_image, detections)
-        label_annotator.annotate(s1_image, detections, labels=[f"{i}" for i in bboxes.keys()])
+        label_annotator.annotate(
+            s1_image, detections, labels=[f"{i}" for i in bboxes.keys()]
+        )
 
     s2_image = copy.deepcopy(s2.image)
     for (_, bboxes), annotator in zip(s2_bboxes.items(), annotators):
-        if len(bboxes) == 0: continue
+        if len(bboxes) == 0:
+            continue
         detections = Detections(np.array([bbox for bbox in bboxes.values()]))
         annotator.annotate(s2_image, detections)
-        label_annotator.annotate(s2_image, detections, labels=[f"{i}" for i in bboxes.keys()])
+        label_annotator.annotate(
+            s2_image, detections, labels=[f"{i}" for i in bboxes.keys()]
+        )
 
     image = _get_one_image([s1.image, s2.image])
     bbox_image = _get_one_image([s1_image, s2_image])
-    
+
     match_image = copy.deepcopy(bbox_image)
     _, x_shift, _ = s1_image.shape
     for pair in pairs:
@@ -228,7 +287,14 @@ def visualize(s1: Screen, s2: Screen, pairs: list[tuple], inconsistencies: list[
             yc1 = (ymin1 + ymax1) // 2
             xc2 = (xmin2 + xmax2) // 2
             yc2 = (ymin2 + ymax2) // 2
-            cv2.line(match_image, (xc1, yc1), (x_shift + xc2, yc2), (255, 0, 0), thickness=2, lineType=cv2.LINE_4)
+            cv2.line(
+                match_image,
+                (xc1, yc1),
+                (x_shift + xc2, yc2),
+                (255, 0, 0),
+                thickness=2,
+                lineType=cv2.LINE_4,
+            )
 
     return image, bbox_image, match_image
 
@@ -237,20 +303,22 @@ def annotate_screen(screen: Screen) -> Image.Image:
     # Pad image to accomodate annotations
     x_pad, y_pad = 50, 50
     image = copy.deepcopy(screen.image)
-    image = cv2.copyMakeBorder(image, y_pad, y_pad, x_pad, x_pad, cv2.BORDER_CONSTANT, value=(255, 255, 255))
+    image = cv2.copyMakeBorder(
+        image, y_pad, y_pad, x_pad, x_pad, cv2.BORDER_CONSTANT, value=(255, 255, 255)
+    )
 
     # Check if UI is dark or light and assign text color
     gray = cv2.cvtColor(screen.image, cv2.COLOR_BGR2GRAY)
     gray_resized = cv2.resize(gray, (100, 100))
     avg_brightness = np.mean(gray_resized)
     text_color = (0, 255, 0) if avg_brightness < 128 else (255, 0, 0)
-        
+
     # Mask out regions occupied by widgets in the image
     h, w, _ = screen.image.shape
-    mask = np.zeros(shape=(h + 2*y_pad, w + 2*x_pad))
+    mask = np.zeros(shape=(h + 2 * y_pad, w + 2 * x_pad))
     for widget in screen.widgets.values():
         x_min, y_min, x_max, y_max = widget.bbox
-        mask[y_pad+y_min:y_pad+y_max, x_pad+x_min:x_pad+x_max] = 1
+        mask[y_pad + y_min : y_pad + y_max, x_pad + x_min : x_pad + x_max] = 1
 
     # For each widget, find an empty side to annotate, otherwise annotate center
     font, font_scale, font_thickness = cv2.FONT_HERSHEY_SIMPLEX, 1.5, 3
@@ -264,22 +332,22 @@ def annotate_screen(screen: Screen) -> Image.Image:
         text_size = cv2.getTextSize(id, font, font_scale, font_thickness)[0]
 
         # up
-        if np.sum(mask[y_min-margin:y_min, x_min:x_max]) == 0:
+        if np.sum(mask[y_min - margin : y_min, x_min:x_max]) == 0:
             text_x = x_min
             text_y = y_min
-        
+
         # left
-        elif np.sum(mask[y_min:y_max, x_min-margin:x_min]) == 0:
+        elif np.sum(mask[y_min:y_max, x_min - margin : x_min]) == 0:
             text_x = x_min - text_size[0]
             text_y = y_min + text_size[1]
 
         # down
-        elif np.sum(mask[y_max:y_max+margin, x_min:x_max]) == 0:
+        elif np.sum(mask[y_max : y_max + margin, x_min:x_max]) == 0:
             text_x = x_min
             text_y = y_max + text_size[1]
 
         # right
-        elif np.sum(mask[y_min:y_max, x_max:x_max+margin]) == 0:
+        elif np.sum(mask[y_min:y_max, x_max : x_max + margin]) == 0:
             text_x = x_max
             text_y = y_min + text_size[1]
 
@@ -292,9 +360,13 @@ def annotate_screen(screen: Screen) -> Image.Image:
         else:
             text_x = x_min
             text_y = y_min + text_size[1]
-            
-        cv2.putText(image, id, (text_x, text_y), font, font_scale, text_color, font_thickness)
-        cv2.rectangle(image, (x_min, y_min), (x_max, y_max), color=(0, 255, 0), thickness=2)
+
+        cv2.putText(
+            image, id, (text_x, text_y), font, font_scale, text_color, font_thickness
+        )
+        cv2.rectangle(
+            image, (x_min, y_min), (x_max, y_max), color=(0, 255, 0), thickness=2
+        )
 
     image = Image.fromarray(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
     return image
@@ -303,25 +375,20 @@ def annotate_screen(screen: Screen) -> Image.Image:
 def convert_process_to_json(path: str):
     process_actions = []
 
-    with open(f"{path}/implementation/process.txt", 'r', encoding='utf-8') as file:
+    with open(f"{path}/implementation/process.txt", "r", encoding="utf-8") as file:
         for i, line in enumerate(file):
-            screen_actions = {
-                "screen": f"{i + 1}.jpg",
-                "actions": []
-            }
+            screen_actions = {"screen": f"{i + 1}.jpg", "actions": []}
 
             line = line.strip()
             actions = line.split("，")
             for action in actions:
-                screen_actions["actions"].append({
-                    "action": action,
-                    "bounds": []
-                })
+                screen_actions["actions"].append({"action": action, "bounds": []})
 
             process_actions.append(screen_actions)
-    
+
     # Convert list of actions to JSON
-    with open(f"{path}/implementation/process.json", "w") as f: json.dump(process_actions, f, ensure_ascii=False, indent=2)
+    with open(f"{path}/implementation/process.json", "w") as f:
+        json.dump(process_actions, f, ensure_ascii=False, indent=2)
 
 
 def check_action(true_action: dict, action_name: str, action) -> bool:
@@ -329,17 +396,23 @@ def check_action(true_action: dict, action_name: str, action) -> bool:
         # Unpack the coordinates of the boxes
         x1_min, y1_min, x1_max, y1_max = box1
         x2_min, y2_min, x2_max, y2_max = box2
-        
+
         # Check for overlap using the condition
-        return (x1_min <= x2_max and x2_min <= x1_max and
-                y1_min <= y2_max and y2_min <= y1_max)
-    
-    if action_name != true_action["action"]: 
+        return (
+            x1_min <= x2_max
+            and x2_min <= x1_max
+            and y1_min <= y2_max
+            and y2_min <= y1_max
+        )
+
+    if action_name != true_action["action"]:
         print("\t\t[x] Incorrect action name")
         return False
-    
+
     bounds: list = action()
-    true_bounds: list = [true_action.get("bounds")] if true_action.get("bounds") is not None else []
+    true_bounds: list = (
+        [true_action.get("bounds")] if true_action.get("bounds") is not None else []
+    )
 
     if len(bounds) != len(true_bounds):
         print(bounds)
@@ -347,13 +420,13 @@ def check_action(true_action: dict, action_name: str, action) -> bool:
         print("\t\t[x] Incorrect bboxes")
         print(action_name, true_action)
         return False
-    
+
     if not all([_overlap(a, b) for a, b in zip(bounds, true_bounds)]):
         print("\t\t[x] Incorrect overlap", bounds, true_bounds)
         return False
-    
+
     true_direction = true_action.get("direction")
     if true_direction and action.args[-1] != true_direction:
         return False
-    
+
     return True

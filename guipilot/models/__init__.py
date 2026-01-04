@@ -1,2 +1,2 @@
-from .detector.detector import Detector
-from .ocr.ocr import OCR
+from .detector.detector import *
+from .ocr.ocr import *

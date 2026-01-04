@@ -1,6 +1,5 @@
-from enum import Enum
 from collections import namedtuple
-
+from enum import Enum
 
 Bbox = namedtuple("Bbox", ["xmin", "ymin", "xmax", "ymax"])
 

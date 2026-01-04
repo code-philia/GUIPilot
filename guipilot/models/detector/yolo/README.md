@@ -41,9 +41,9 @@ datasets/
             |_ ......
 ```
 
-- Step 2: Edit the `train` and `val` arguments in `datasets.yaml`, they should be pointing to a directory where you want to save the training and testing images and labels. 
+- Step 2: Edit the `train` and `val` arguments in `datasets.yaml`, they should be pointing to a directory where you want to save the training and testing images and labels.
 E.g. /home/....guipilot/datasets/finetune/images/train/ and /home/....guipilot/datasets/finetune/images/val/. Please use **absolute path** here.
-- Step 3: Run dataset splitting, the annotations will be saved in COCO format in json files. 
+- Step 3: Run dataset splitting, the annotations will be saved in COCO format in json files.
 ```bash
 python -m guipilot.models.detector.yolo.main \
 --config guipilot/models/detector/yolo/dataset.yaml \
@@ -78,9 +78,9 @@ python -m guipilot.models.detector.yolo.main \
 ```
 
 
-## Run evaluation (Compute mAP, mAR on testing set) 
+## Run evaluation (Compute mAP, mAR on testing set)
 ```bash
 python -m guipilot.models.detector.yolo.main \
 --config guipilot/models/detector/yolo/dataset.yaml \
---do_test 
+--do_test
 ```
