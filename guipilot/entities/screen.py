@@ -1,5 +1,6 @@
 from __future__ import annotations
 import typing
+import os
 from dataclasses import dataclass, field
 
 import cv2
@@ -15,8 +16,11 @@ if typing.TYPE_CHECKING:
     from guipilot.matcher import WidgetMatcher
 
 
-ocr = OCR(service_url="http://localhost:5000/detect")
-detector = Detector(service_url="http://localhost:6000/detect")
+OCR_SERVICE_URL = os.getenv("OCR_SERVICE_URL")
+DETECTOR_SERVICE_URL = os.getenv("DETECTOR_SERVICE_URL")
+
+ocr = OCR(service_url=OCR_SERVICE_URL)
+detector = Detector(service_url=DETECTOR_SERVICE_URL)
 
 
 @dataclass

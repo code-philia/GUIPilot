@@ -1,6 +1,6 @@
-import os
 import json
 import copy
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -16,7 +16,15 @@ from guipilot.entities import (
 )
 
 
-def visualize_inconsistencies(s1: Screen, s2: Screen, pairs: list[tuple], inconsistencies: list[tuple], path: str, filename: str):
+def visualize_inconsistencies(
+    s1: Screen,
+    s2: Screen,
+    pairs: list[tuple],
+    inconsistencies: list[tuple],
+    path: str,
+    filename: str,
+    output_root: Path | str | None = None,
+):
     def _get_one_image(img_list: list[np.ndarray]):
         max_height = 0
         total_width = 0  # padding
@@ -82,9 +90,11 @@ def visualize_inconsistencies(s1: Screen, s2: Screen, pairs: list[tuple], incons
         annotator.annotate(s2_image, detections)
         label_annotator.annotate(s2_image, detections, labels=[f"{i}" for i in bboxes.keys()])
 
-    os.makedirs(f"./visualize/{path}", exist_ok=True)
+    base_dir = Path(output_root) if output_root is not None else Path("visualize")
+    target_dir = base_dir / path
+    target_dir.mkdir(parents=True, exist_ok=True)
     image = _get_one_image([s1_image, s2_image])
-    cv2.imwrite(f"./visualize/{path}/{filename}.jpg", image)
+    cv2.imwrite(str(target_dir / f"{filename}.jpg"), image)
 
 
 def remove_overlapping_widgets(widgets: dict[int, Widget]) -> dict[int, Widget]:

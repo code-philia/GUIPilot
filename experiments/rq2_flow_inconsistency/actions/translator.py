@@ -12,7 +12,7 @@ class Translator(Automator):
     def __init__(
             self, 
             screen: Screen,
-            device: Device = u2.connect("192.168.240.112:5555"),
+            device: Device | None = None,
         ) -> None:
         """Translator extends the Automator and 
             translates actions provided by the VLM agent into executable actions

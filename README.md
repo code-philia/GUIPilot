@@ -38,16 +38,30 @@ The core GUIPilot module is organized as follows:
 
 Clone the repository and follow the steps below:
 
-1. Create a conda environment.
-    ```bash
-    conda env create -f environment.yml
-    conda activate guipilot
-    ```
+运行统一脚本创建/更新 Conda 环境（脚本会自动安装所有依赖并安装 `guipilot` 包）：
+```bash
+python scripts/setup_env.py
+```
 
-2. Install guipilot as a Python package.
-    ```bash
-    pip install .
-    ```
+- macOS/Windows 默认环境名为 `guipilot`
+- Linux GPU 机器可以显式指定：`python scripts/setup_env.py --platform linux-gpu --name guipilot-gpu`
+- 更多命令选项见 `docs/environment-setup.md`
+
+脚本会自动完成以下步骤：
+1. 创建/更新 Conda 环境（根据平台选择对应的 `envs/environment-*.yml`）
+2. 安装 pip 依赖（`requirements-pip.txt`，Linux GPU 还会安装 `requirements-pip-gpu.txt`）
+3. **安装 `guipilot` 包本身**（通过 `pip install -e .`，使用可编辑模式安装）
+
+安装完成后，激活环境即可使用：
+```bash
+conda activate guipilot          # 或 guipilot-gpu
+```
+
+> **说明**：
+> - `setup.py` 的作用是将 `guipilot` 包安装到 Python 环境中，使其可以在任何位置被导入（如 `from guipilot.matcher import ...`）
+> - 实验脚本中只保留了必要的 `sys.path` 修改，用于导入实验目录下的本地模块（`utils`、`mutate`、`actions`）
+> - `guipilot` 包已安装到环境中，不再需要通过修改 `sys.path` 来导入
+> - 这种设计更符合 Python 包管理的最佳实践，也便于在其他项目中使用 GUIPilot
 
 ### Setup Experiments
 
@@ -55,7 +69,14 @@ Each directory within `/experiments` includes a `README.md` file that provides d
 
 ## 🏃 Usage
 
-Refer to [`/experiments/rq1_screen_inconsistency/main.py`](../experiments/rq1_screen_inconsistency/main.py) for a complete working example.
+更多实验脚本：
+
+- 屏幕不一致性（RQ1）：`experiments/rq1_screen_inconsistency/main.py`
+- 流程不一致性（RQ2）：`experiments/rq2_flow_inconsistency/main.py`
+- 组件级评估（RQ3）：`experiments/rq3_component_wise_evaluation/main.py`
+- 案例研究（RQ4）：`experiments/rq4_case_study/main.py`
+
+- 默认情况下不启用离线模型。若需本地推理，可设置 `ENABLE_LOCAL_DETECTOR=1`（可配合 `DETECTOR_WEIGHT_PATH` 指定权重）与/或 `ENABLE_PADDLEOCR=1`；也可以通过 `DETECTOR_SERVICE_URL`、`OCR_SERVICE_URL` 使用远程服务，`PADDLEOCR_USE_GPU=1` 则尝试开启 GPU。
 
 ### Step 1: Load Screenshots as `Screen` Instances
 

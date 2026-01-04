@@ -4,8 +4,13 @@ __pycache__
 *.csv
 *.zip
 *.txt
+!requirements-pip.txt
+!requirements-pip-gpu.txt
+!requirements-pip-windows.txt
 *.apk
 *.pt
+runs/
+ci-artifacts/
 
 .env
 

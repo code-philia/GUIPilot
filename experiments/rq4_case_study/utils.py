@@ -52,13 +52,19 @@ def image_resize(image, width = None, height = None, inter = cv2.INTER_AREA):
     return resized
 
 
-def get_screen(process_path: str, filename: str) -> Screen:
+def get_screen(process_path: str, filename: str, tolerate_failure: bool = False) -> Screen | None:
     image_path = os.path.join(process_path, filename)
     image: np.ndarray = cv2.imread(image_path)
     image = image_resize(image, width=1080)
     screen = Screen(image)
-    screen.detect()
-    screen.ocr()
+    try:
+        screen.detect()
+        screen.ocr()
+    except Exception as exc:
+        if tolerate_failure:
+            print(f"[warning] Failed to run detector/OCR for {image_path}: {exc}")
+            return None
+        raise
     return screen
 
 

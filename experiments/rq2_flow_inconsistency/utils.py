@@ -2,6 +2,7 @@ import os
 import re
 from copy import deepcopy
 from functools import partial
+from pathlib import Path
 from typing import Callable, Iterable
 from timeit import default_timer as timer
 
@@ -18,8 +19,9 @@ from guipilot.matcher import WidgetMatcher
 from guipilot.checker import ScreenChecker
 
 
-def get_mock_screen(process_path: str, step: Step) -> Screen:
-    mock_image_path = os.path.join(process_path, step.screenshot)
+def get_mock_screen(process_path: str | Path, step: Step) -> Screen:
+    process_path = Path(process_path)
+    mock_image_path = process_path / step.screenshot
     mock_image: np.ndarray = cv2.imread(mock_image_path)
     mock_screen = Screen(mock_image)
     mock_screen.detect()
@@ -29,6 +31,27 @@ def get_mock_screen(process_path: str, step: Step) -> Screen:
 
 def get_real_screen(automator: Automator) -> Screen:
     real_image = automator.device.screenshot(format="opencv")
+    real_screen = Screen(real_image)
+    real_screen.detect()
+    real_screen.ocr()
+    return real_screen
+
+
+def get_replay_screen(
+    process_path: str | Path,
+    step_index: int,
+    subdir: str = "real",
+) -> Screen:
+    """Load a recorded real screen image for offline replay mode."""
+    process_path = Path(process_path)
+    real_image_path = process_path / subdir / f"{step_index + 1}.jpg"
+    if not real_image_path.exists():
+        raise FileNotFoundError(f"Replay screen not found: {real_image_path}")
+
+    real_image = cv2.imread(str(real_image_path))
+    if real_image is None:
+        raise FileNotFoundError(f"Failed to load replay screen: {real_image_path}")
+
     real_screen = Screen(real_image)
     real_screen.detect()
     real_screen.ocr()

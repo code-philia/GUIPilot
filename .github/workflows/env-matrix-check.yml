@@ -1,0 +1,176 @@
+name: Cross-Platform Smoke Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  smoke-tests:
+    name: Smoke ${{ matrix.platform.name }}
+    runs-on: ${{ matrix.platform.runner }}
+    env:
+      ENABLE_LOCAL_DETECTOR: "1"
+    defaults:
+      run:
+        shell: bash -l {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: macos
+            runner: macos-14
+            setup_args: --platform macos --name guipilot-ci
+            smoke_env: guipilot-ci
+          - name: linux-gpu
+            runner: ubuntu-latest
+            setup_args: --platform linux-gpu --name guipilot-ci
+            smoke_env: guipilot-ci
+          # - name: windows
+          #   runner: windows-latest
+          #   setup_args: --platform windows --name guipilot-ci
+          #   smoke_env: guipilot-ci
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download detector weights
+        run: |
+          python -m pip install --quiet gdown
+          gdown --fuzzy "https://drive.google.com/uc?id=15YUP8aMXC97n-m-U28wP1Sz5Eabw69m-" -O guipilot/models/detector/best.pt
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          python-version: "3.10"
+          channels: conda-forge,defaults
+          use-mamba: true
+
+      # ---------- conda info ----------
+      - name: conda info (Unix)
+        if: ${{ runner.os != 'Windows' }}
+        run: conda info
+
+      # - name: conda info (Windows)
+      #   if: ${{ runner.os == 'Windows' }}
+      #   shell: pwsh
+      #   run: conda info
+
+      # ---------- create/update env ----------
+      - name: Create/Update environment (Unix)
+        if: ${{ runner.os != 'Windows' }}
+        run: python scripts/setup_env.py ${{ matrix.platform.setup_args }}
+
+      # - name: Create/Update environment (Windows)
+      #   if: ${{ runner.os == 'Windows' }}
+      #   shell: pwsh
+      #   run: python scripts/setup_env.py ${{ matrix.platform.setup_args }}
+
+      # ---------- verify deps ----------
+      - name: Verify Python dependencies (Unix)
+        if: ${{ runner.os != 'Windows' }}
+        run: |
+          conda run -n ${{ matrix.platform.smoke_env }} python - <<'PY'
+          import importlib, sys
+          modules = ["dotenv", "cv2", "supervision", "uiautomator2"]
+          missing = [m for m in modules if importlib.util.find_spec(m) is None]
+          if missing:
+              sys.exit("Missing modules: " + ", ".join(missing))
+          print("All required modules are available.")
+          PY
+
+      # - name: Verify Python dependencies (Windows)
+      #   if: ${{ runner.os == 'Windows' }}
+      #   shell: pwsh
+      #   run: >
+      #     conda run -n ${{ matrix.platform.smoke_env }} python -c
+      #     "import importlib, sys; modules=['dotenv','cv2','supervision','uiautomator2'];
+      #     missing=[m for m in modules if importlib.util.find_spec(m) is None];
+      #     sys.exit(0 if not missing else 'Missing modules: ' + ', '.join(missing))"
+
+      # ---------- RQ1 ----------
+      - name: Run RQ1 smoke test (Unix)
+        if: ${{ runner.os != 'Windows' }}
+        run: >
+          conda run -n ${{ matrix.platform.smoke_env }} python
+          experiments/rq1_screen_inconsistency/main.py
+          --dataset datasets/new
+          --limit 1
+          --skip-visualize
+          --output-dir ci-artifacts/rq1
+
+      # - name: Run RQ1 smoke test (Windows)
+      #   if: ${{ runner.os == 'Windows' }}
+      #   shell: pwsh
+      #   run: >
+      #     conda run -n ${{ matrix.platform.smoke_env }} python
+      #     experiments/rq1_screen_inconsistency/main.py
+      #     --dataset datasets/new
+      #     --limit 1
+      #     --skip-visualize
+      #     --output-dir ci-artifacts/rq1
+
+      # ---------- RQ2 ----------
+      - name: Run RQ2 smoke test (Unix)
+        if: ${{ runner.os != 'Windows' }}
+        run: |
+          conda run --no-capture-output -n ${{ matrix.platform.smoke_env }} bash -c "
+            export ENABLE_LOCAL_DETECTOR=1
+            python experiments/rq2_flow_inconsistency/main.py \
+              --dataset datasets/rq2/smoke_app \
+              --mode replay \
+              --skip-agent \
+              --limit 1 \
+              --output-dir ci-artifacts/rq2
+          "
+
+      - name: Run RQ3 smoke test (Unix)
+        if: ${{ runner.os != 'Windows' }}
+        run: >
+          conda run -n ${{ matrix.platform.smoke_env }} python
+          experiments/rq3_component_wise_evaluation/main.py
+          --dataset datasets/new
+          --limit 1
+          --pipelines guipilot_full
+          --skip-visualize
+          --output-dir ci-artifacts/rq3
+
+      - name: Run RQ4 smoke test (Unix)
+        if: ${{ runner.os != 'Windows' }}
+        run: |
+          conda run --no-capture-output -n ${{ matrix.platform.smoke_env }} bash -c "
+            export ENABLE_LOCAL_DETECTOR=1
+            python experiments/rq4_case_study/main.py \
+              --dataset datasets/rq4 \
+              --skip-agent \
+              --skip-visualize \
+              --process-limit 1 \
+              --screen-limit 1 \
+              --output-dir ci-artifacts/rq4
+          "
+
+      # - name: Run RQ2 smoke test (Windows)
+      #   if: ${{ runner.os == 'Windows' }}
+      #   shell: pwsh
+      #   run: >
+      #     conda run -n ${{ matrix.platform.smoke_env }} python
+      #     experiments/rq2_flow_inconsistency/main.py
+      #     --dataset datasets/rq2/smoke_app
+      #     --mode replay
+      #     --use-layout
+      #     --skip-agent
+      #     --limit 1
+      #     --output-dir ci-artifacts/rq2
+
+      # ---------- cleanup ----------
+      - name: Remove CI environment (Unix)
+        if: ${{ always() && runner.os != 'Windows' }}
+        run: conda env remove -n ${{ matrix.platform.smoke_env }} || exit 0
+
+      # - name: Remove CI environment (Windows)
+      #   if: ${{ always() && runner.os == 'Windows' }}
+      #   shell: pwsh
+      #   run: conda env remove -n ${{ matrix.platform.smoke_env }} || exit 0

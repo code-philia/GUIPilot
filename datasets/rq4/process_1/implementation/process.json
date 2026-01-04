@@ -1,0 +1,26 @@
+[
+  {
+    "screen": "1.jpg",
+    "mock_actions": [
+      "Tap primary button"
+    ],
+    "actions": [
+      {
+        "action": "click",
+        "bounds": [
+          60,
+          240,
+          300,
+          340
+        ]
+      }
+    ]
+  },
+  {
+    "screen": "2.jpg",
+    "mock_actions": [
+      "Detail screen"
+    ],
+    "actions": []
+  }
+]

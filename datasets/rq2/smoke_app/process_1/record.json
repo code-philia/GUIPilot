@@ -1,0 +1,36 @@
+{
+  "package_name": "com.example.smoke",
+  "package_version": "1.0",
+  "init_activity": "com.example.smoke.MainActivity",
+  "inconsistency_index": 0,
+  "steps": [
+    {
+      "activity": "com.example.smoke.MainActivity",
+      "screenshot": "1.jpg",
+      "description": "Tap primary button",
+      "layout": "1.xml",
+      "action": "click",
+      "params": {
+        "locator": {
+          "bounds": [
+            60,
+            240,
+            300,
+            340
+          ],
+          "text": "Start"
+        }
+      },
+      "time": 0.42
+    },
+    {
+      "activity": "com.example.smoke.DetailActivity",
+      "screenshot": "2.jpg",
+      "description": "Detail screen",
+      "layout": "2.xml",
+      "action": null,
+      "params": null,
+      "time": null
+    }
+  ]
+}

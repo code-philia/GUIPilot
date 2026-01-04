@@ -2,18 +2,31 @@ import os
 import glob
 import random
 from copy import deepcopy
+from functools import lru_cache
 
 import numpy as np
 from dotenv import load_dotenv
 
 from guipilot.entities import Screen, Widget, Inconsistency, Bbox
-from utils import load_screen
+try:
+    from experiments.rq1_screen_inconsistency.utils import load_screen
+except ImportError:  # pragma: no cover
+    from ..utils import load_screen  # type: ignore
 from .utils import sample_p
 
 
 load_dotenv()
-DATASET_PATH = os.getenv("DATASET_PATH")
-IMAGE_PATHS = glob.glob(os.path.join(DATASET_PATH, "*", "*", "*.jpg"))
+
+
+@lru_cache(maxsize=1)
+def _get_image_paths() -> tuple[str, ...]:
+    dataset_path = os.getenv("DATASET_PATH")
+    if not dataset_path:
+        return tuple()
+
+    pattern = os.path.join(dataset_path, "**", "*.jpg")
+    paths = glob.glob(pattern, recursive=True)
+    return tuple(sorted(paths))
 
 
 def insert_widgets(screen: Screen, p: float) -> tuple[Screen, set]:
@@ -58,7 +71,11 @@ def insert_widgets(screen: Screen, p: float) -> tuple[Screen, set]:
     height, width, _ = screen.image.shape
 
     # Select a random screen
-    random_path = random.choice(IMAGE_PATHS)
+    image_paths = _get_image_paths()
+    if not image_paths:
+        raise RuntimeError("No candidate screens found for insertion; ensure DATASET_PATH points to a dataset with *.jpg files.")
+
+    random_path = random.choice(image_paths)
     random_screen = load_screen(random_path)
     random_screen.ocr()
 
@@ -128,7 +145,11 @@ def insert_row(screen: Screen, p: float) -> tuple[Screen, set]:
     screen = deepcopy(screen)
 
     # Select a random screen
-    random_path = random.choice(IMAGE_PATHS)
+    image_paths = _get_image_paths()
+    if not image_paths:
+        raise RuntimeError("No candidate screens found for insertion; ensure DATASET_PATH points to a dataset with *.jpg files.")
+
+    random_path = random.choice(image_paths)
     random_screen = load_screen(random_path)
     random_screen.ocr()
 

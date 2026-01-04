@@ -18,15 +18,15 @@ class Action(Enum):
 
 class Automator:
     def __init__(
-            self, 
-            device: Device = u2.connect("192.168.240.112:5555"),
+            self,
+            device: Device | None = None,
             wait_until_loaded: bool = False
         ) -> None:
         """Automator wraps a uiautomator device and 
             defines a fixed set of actions on the connected phone.
         """
         self.wait_until_loaded = wait_until_loaded
-        self.device = device
+        self.device = device or u2.connect("192.168.240.112:5555")
 
     def wait(self, timeout=30, interval=1, stability_threshold=5):
         """Wait for screen to finish loading

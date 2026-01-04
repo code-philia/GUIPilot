@@ -1,0 +1,11 @@
+name: RQ2 Smoke Test (Deprecated)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "RQ2 已迁移至 Cross-Platform Smoke Tests 工作流 (.github/workflows/env-matrix-check.yml)。"
+

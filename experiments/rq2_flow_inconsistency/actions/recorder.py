@@ -63,7 +63,7 @@ class Record(BaseModel):
 
 
 class Recorder(Automator):
-    def __init__(self, device: Device = u2.connect("192.168.240.112:5555")) -> None:
+    def __init__(self, device: Device | None = None) -> None:
         """Recorder extends the Automator and 
             records all actions, screenshots, layouts in a record file.
             Meant to be used in CLI for manually recording steps.
