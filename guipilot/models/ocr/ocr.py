@@ -3,7 +3,15 @@ import base64
 import cv2
 import requests
 import numpy as np
-from paddleocr import PaddleOCR 
+from paddleocr import PaddleOCR
+import os
+
+try:
+    # best-effort: detect if paddle has GPU support
+    import paddle
+    _paddle_has_cuda = paddle.is_compiled_with_cuda()
+except Exception:
+    _paddle_has_cuda = False
 
 
 class OCR():
@@ -11,7 +19,18 @@ class OCR():
         self.service_url = service_url
 
         if service_url is None:
-            self.ocr = PaddleOCR(lang="ch", show_log=False, use_gpu=True)
+            # allow env override: GUIPILOT_OCR_USE_GPU (1/0)
+            env_use_gpu = os.environ.get("GUIPILOT_OCR_USE_GPU")
+            if env_use_gpu is not None:
+                use_gpu = env_use_gpu.strip() in ("1", "true", "True", "yes", "on")
+            else:
+                use_gpu = _paddle_has_cuda
+
+            try:
+                self.ocr = PaddleOCR(lang="ch", show_log=False, use_gpu=use_gpu)
+            except Exception:
+                # fallback to CPU if GPU init failed
+                self.ocr = PaddleOCR(lang="ch", show_log=False, use_gpu=False)
 
     def _local(self, image: np.ndarray) -> tuple[list, list]:
         texts, text_bboxes = [], []
