@@ -1,0 +1,54 @@
+name: Security Check
+
+on:
+  # Trigger timing: consistent with code style check, or configurable independently
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  # Optional: Run full security check automatically every Monday (scan dependency vulnerabilities regularly)
+  schedule:
+    - cron: '0 0 * * 1'
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Cache Conda environment (reuse cache logic from code style check)
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/miniconda3/envs/guipilot
+            ~/miniconda3/pkgs
+            ~/.cache/pip
+          key: ${{ runner.os }}-conda-${{ hashFiles('environment.yml') }}
+          restore-keys: |
+            ${{ runner.os }}-conda-
+
+      - name: Configure Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: environment.yml
+          activate-environment: guipilot
+          miniconda-version: "latest"
+
+      - name: Install security scanning tools
+        shell: bash -l {0}
+        run: |
+          python -m pip install --upgrade pip
+          # 1. bandit: Scan for security vulnerabilities in code (e.g., SQL injection, hardcoded secrets, etc.)
+          # 2. safety: Check for known security vulnerabilities in dependencies
+          pip install bandit
+
+      # Step 1: Bandit - Code security vulnerability scanning
+      - name: Bandit - Code security vulnerability scan
+        shell: bash -l {0}
+        run: |
+          echo "===== Start Bandit code security check ====="
+          # -r: Recursively scan directories
+          bandit . --tests B105,B108,B603
+          echo "===== Bandit check completed ====="
+          echo ""

@@ -4,13 +4,14 @@ try:
     import networkx as nx
 except:
     pass
-from fitz import Rect, Point
+from fitz import Point, Rect
 
 __all__ = ["rect", "point", "line", "line_seq"]
 
 
 X = 1080
 Y = 2400
+
 
 class Widget:
     def __init__(self, label, bounds, idx=0, is_removed=False) -> None:
@@ -72,17 +73,27 @@ class Widget:
         return Widget(label, bounds)
 
     def to_yolo(self, label2id, image_width, image_height):
-        return Widget._to_yolo_label(self.label, self.bounds, label2id, image_width, image_height)
+        return Widget._to_yolo_label(
+            self.label, self.bounds, label2id, image_width, image_height
+        )
 
     @staticmethod
     def write_yolo_labels(file, label2id, widgets, image_width, image_height):
         lables = ""
         if isinstance(widgets, list):
             for widget in widgets:
-                lables = lables + widget.to_yolo(label2id, image_width, image_height) + "\n"
+                lables = (
+                    lables + widget.to_yolo(label2id, image_width, image_height) + "\n"
+                )
         elif isinstance(widgets, dict):
             for label, widget in zip(widgets["cls"], widgets["box"]):
-                lables = lables + Widget._to_yolo_label(label, widget, label2id, image_width, image_height) + "\n"
+                lables = (
+                    lables
+                    + Widget._to_yolo_label(
+                        label, widget, label2id, image_width, image_height
+                    )
+                    + "\n"
+                )
         with open(file, "w") as f:
             f.write(lables)
 
@@ -102,6 +113,7 @@ class Widget:
         w = (bounds[2] - bounds[0]) / image_width
         h = (bounds[3] - bounds[1]) / image_height
         return f"{label2id[label]} {x} {y} {w} {h}"
+
 
 class rect(Rect):
     def __init__(self, *args):

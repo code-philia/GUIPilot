@@ -1,60 +1,121 @@
 from __future__ import annotations
-import typing
+
 import re
-import cv2
-import numpy as np
+import typing
 from difflib import SequenceMatcher
 
+import cv2
+import numpy as np
+
+from guipilot.entities import Inconsistency, WidgetType
+
 from .checker import ScreenChecker
-from guipilot.entities import WidgetType, Inconsistency
 
 if typing.TYPE_CHECKING:
     from guipilot.entities import Widget
 
 
 class GUIPilot(ScreenChecker):
-    def check_widget_pair(self, w1: Widget, w2: Widget, wi1: np.ndarray, wi2: np.ndarray) -> list[tuple]:
+    """
+    Consistency checker for mobile GUI elements.
+
+    This class implements the core logic for detecting discrepancies between
+    paired widgets from different screens (e.g., a mockup design and its
+    actual implementation) across multiple dimensions including layout,
+    content, and appearance.
+    """
+
+    def check_widget_pair(
+        self, w1: Widget, w2: Widget, wi1: np.ndarray, wi2: np.ndarray
+    ) -> list[tuple]:
+        """
+        Detects inconsistencies between a matched pair of widgets.
+
+        This method orchestrates individual checks for bounding box alignment,
+        textual similarity, and visual color distribution to identify
+        specific types of implementation errors.
+
+        Args:
+            w1 (Widget): The widget entity from the source screen (e.g., mockup).
+            w2 (Widget): The widget entity from the target screen (e.g., implementation).
+            wi1 (np.ndarray): The cropped image data of widget w1.
+            wi2 (np.ndarray): The cropped image data of widget w2.
+
+        Returns:
+            list[Inconsistency]: A list of detected inconsistency types (BBOX, TEXT, or COLOR).
+        """
+
         def check_bbox_consistency(w1: Widget, w2: Widget) -> bool:
-            """Check if both widgets have similar position, size, and shape on the screen
             """
-            xa, ya = max(w1.bbox[0], w2.bbox[0]), max(w1.bbox[1], w2.bbox[1])
-            xb, yb = min(w1.bbox[2], w2.bbox[2]), min(w1.bbox[3], w2.bbox[3])
-            intersection = abs(max((xb - xa, 0)) * max((yb - ya), 0))
-            boxa = abs((w1.bbox[2] - w1.bbox[0]) * (w1.bbox[3] - w1.bbox[1]))
-            boxb = abs((w2.bbox[2] - w2.bbox[0]) * (w2.bbox[3] - w2.bbox[1]))
-            iou = intersection / (boxa + boxb - intersection)
-            return iou > 0.9
+            Validates if two widgets have similar spatial placement and dimensions.
+
+            Uses the Intersection over Union (IoU) metric to evaluate the overlap
+            between two bounding boxes. A high IoU indicates consistent positioning
+            and sizing on the screen.
+
+            Args:
+                w1 (Widget): First widget for comparison.
+                w2 (Widget): Second widget for comparison.
+
+            Returns:
+                bool: True if the IoU is greater than 0.9, False otherwise.
+            """
+            return super().check_bbox_consistency(w1, w2)
 
         def check_text_consistency(w1: Widget, w2: Widget) -> bool:
-            """Check if the text on both widgets are similar
             """
-            has_text = {WidgetType.TEXT_VIEW, WidgetType.TEXT_BUTTON, WidgetType.COMBINED_BUTTON, WidgetType.INPUT_BOX}
-            if w1.type not in has_text or w2.type not in has_text: return True
+            Compares the similarity of text content between two widgets.
 
-            for t1, t2 in zip(w1.texts, w2.texts):
-                t1 = re.sub(r'[^a-zA-Z0-9]', '', t1)
-                t2 = re.sub(r'[^a-zA-Z0-9]', '', t2)
-                if SequenceMatcher(None, t1.lower(), t2.lower()).quick_ratio() < 0.95: return False
-            
-            return True
+            Only widgets with text-related types (e.g., TEXT_VIEW, INPUT_BOX) are
+            evaluated. The algorithm normalizes strings by removing non-alphanumeric
+            characters and performs a case-insensitive comparison using SequenceMatcher.
+
+            Args:
+                w1 (Widget): First widget containing text strings.
+                w2 (Widget): Second widget containing text strings.
+
+            Returns:
+                bool: True if text similarity meets the 0.95 threshold or if
+                    widgets are non-textual.
+            """
+            return super().check_text_consistency(w1, w2)
 
         def check_color_consistency(wi1: np.ndarray, wi2: np.ndarray) -> bool:
-            """Check if the color distribution on both widgets are similar
+            """
+            Evaluates the visual color similarity between two widget images.
+
+            Computes normalized 3D color histograms (8 bins per RGB channel) for both
+            images and calculates the distance using Kullback-Leibler (KL) Divergence.
+            A lower score indicates more similar color distributions.
+
+            Args:
+                wi1 (np.ndarray): Image array of the first widget.
+                wi2 (np.ndarray): Image array of the second widget.
+
+            Returns:
+                bool: True if the KL Divergence score is less than 8.
             """
             # normalized 3D color histogram, 8 bins per channel
-            hist1 = cv2.calcHist([wi1], [0, 1, 2], None, [8, 8, 8], [0, 250, 0, 250, 0, 250])
+            hist1 = cv2.calcHist(
+                [wi1], [0, 1, 2], None, [8, 8, 8], [0, 250, 0, 250, 0, 250]
+            )
             hist1 = cv2.normalize(hist1, hist1).flatten()
-            
-            hist2 = cv2.calcHist([wi2], [0, 1, 2], None, [8, 8, 8], [0, 250, 0, 250, 0, 250])
+
+            hist2 = cv2.calcHist(
+                [wi2], [0, 1, 2], None, [8, 8, 8], [0, 250, 0, 250, 0, 250]
+            )
             hist2 = cv2.normalize(hist2, hist2).flatten()
 
             score = cv2.compareHist(hist1, hist2, cv2.HISTCMP_KL_DIV)
             return score < 8
-        
+
         diff = set()
-        if not check_bbox_consistency(w1, w2): diff.add(Inconsistency.BBOX)
-        if not check_text_consistency(w1, w2): diff.add(Inconsistency.TEXT)
+        if not check_bbox_consistency(w1, w2):
+            diff.add(Inconsistency.BBOX)
+        if not check_text_consistency(w1, w2):
+            diff.add(Inconsistency.TEXT)
         if Inconsistency.TEXT not in diff:
-            if not check_color_consistency(wi1, wi2): diff.add(Inconsistency.COLOR)
-            
+            if not check_color_consistency(wi1, wi2):
+                diff.add(Inconsistency.COLOR)
+
         return list(diff)

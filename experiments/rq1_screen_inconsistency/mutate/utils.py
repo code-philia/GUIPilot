@@ -13,7 +13,7 @@ def sample_p(population: dict | list, p: float) -> dict | list:
         A list containing the randomly selected elements.
     """
     k = max(int(p * len(population)), 1)
-    if len(population) < k: 
+    if len(population) < k:
         return population
     if isinstance(population, dict):
         keys = random.sample(list(population), k)
@@ -21,11 +21,10 @@ def sample_p(population: dict | list, p: float) -> dict | list:
         return dict(zip(keys, values))
     elif isinstance(population, list):
         return random.sample(population, k)
-    
+
 
 def get_context_color(widget_image: np.ndarray) -> tuple[int, int, int]:
-    """Find the most common color in the image as an RGB tuple
-    """
+    """Find the most common color in the image as an RGB tuple"""
     col_range = (256, 256, 256)
     a2D = widget_image.reshape(-1, widget_image.shape[-1])
     a1D = np.ravel_multi_index(a2D.T, col_range)

@@ -1,6 +1,6 @@
+import base64
 import io
 import os
-import base64
 from abc import ABC, abstractmethod
 from typing import Optional
 
@@ -27,22 +27,25 @@ class GPTAgent(Agent):
 
     def __call__(self, prompt: str, images: Optional[list[Image.Image]] = None) -> str:
         if len(self.history) > 0:
-            self.history.append({
-                "role": "user", 
-                "content": "Incorrect, are you sure it is the correct: 1) widget id, 2) action type 3) direction (i.e., swipe/scroll)? Do not use the same answer again."
-            })
+            self.history.append(
+                {
+                    "role": "user",
+                    "content": "Incorrect, are you sure it is the correct: 1) widget id, 2) action type 3) direction (i.e., swipe/scroll)? Do not use the same answer again.",
+                }
+            )
 
         user_prompt = [{"type": "text", "text": prompt}]
 
         for image in images:
             bytes = io.BytesIO()
             image.save(bytes, format="JPEG")
-            image_b64 = base64.b64encode(bytes.getvalue()).decode('ascii')
-            user_prompt.append({
-                "type": "image_url",
-                "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"}
-            })
-
+            image_b64 = base64.b64encode(bytes.getvalue()).decode("ascii")
+            user_prompt.append(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/jpeg;base64,{image_b64}"},
+                }
+            )
 
         self.history.append({"role": "user", "content": user_prompt})
         response = self.client.chat.completions.create(
@@ -50,7 +53,7 @@ class GPTAgent(Agent):
             messages=self.history,
             max_tokens=1024,
             temperature=0,
-            top_p=1
+            top_p=1,
         )
 
         content = response.choices[0].message.content

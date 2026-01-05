@@ -1,3 +1,3 @@
 from .automator import Automator
-from .recorder import Recorder, Step, Record
+from .recorder import Record, Recorder, Step
 from .translator import Translator

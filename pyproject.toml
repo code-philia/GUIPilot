@@ -1,0 +1,18 @@
+# pyproject.toml (project root directory)
+[tool.ruff.lint]
+# Enable flake8-comprehensions rule set (C4 prefix) to fix R1721
+select = [
+    "E",    # Syntax errors
+    "F",    # Import issues
+    "W",    # Warnings
+    "C",    # Formatting issues
+    "C4"    # Comprehension optimizations (includes rules corresponding to R1721)
+]
+# Allow auto-fix for C4 rules (e.g., issues like R1721)
+fixable = [
+    "E",
+    "F",
+    "W",
+    "C",
+    "C4"
+]

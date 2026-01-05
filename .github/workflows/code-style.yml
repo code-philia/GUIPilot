@@ -1,0 +1,67 @@
+name: Code Style Check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  style-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+      
+      - name: Cache Conda environment (reduce dependency installation time)
+        uses: actions/cache@v3
+        with:
+          # Cache Conda environment and package cache directory
+          path: |
+            ~/miniconda3/envs/guipilot
+            ~/miniconda3/pkgs
+            ~/.cache/pip  # Cache pip-installed tools
+          # Cache key: OS + hash of Conda environment file (reuse cache if env file unchanged)
+          key: ${{ runner.os }}-conda-${{ hashFiles('environment.yml') }}
+          # Fallback key: match old cache for the same OS (speed up first cache hit)
+          restore-keys: |
+            ${{ runner.os }}-conda-
+
+      - name: Configure Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          environment-file: environment.yml
+          activate-environment: guipilot
+          miniconda-version: "latest"
+
+      - name: Install code checking tools
+        shell: bash -l {0}
+        run: |
+          python -m pip install --upgrade pip
+          pip install black flake8 pylint
+
+      # 1. Black 
+      - name: Black code format check
+        shell: bash -l {0}
+        run: |
+          echo "===== Start Black check ====="
+          black --check guipilot/ experiments/ || true
+          echo "===== Black check completed ====="
+          echo ""
+
+      # 2. Flake8 
+      - name: Flake8 syntax error check
+        shell: bash -l {0}
+        run: |
+          echo "===== Start Flake8 check ====="
+          flake8 guipilot/ experiments/ --select=E9,F63,F7,F82 --statistics || true
+          echo "===== Flake8 check completed ====="
+          echo ""
+
+      # 3. Pylint 
+      - name: Pylint code quality check
+        shell: bash -l {0}
+        run: |
+          echo "===== Start Pylint check ====="
+          pylint guipilot/ experiments/ --disable=E0401,E1101,R0912,R0913,R0914,R0915,R0917 || true
+          echo "===== Pylint check completed ====="
