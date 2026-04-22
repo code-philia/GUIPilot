@@ -8,6 +8,7 @@ __pycache__
 *.pt
 
 .env
+.venv
 
 experiments/rq1_screen_inconsistency/analysis
 experiments/rq1_screen_inconsistency/examples
@@ -23,3 +24,6 @@ experiments/rq2_flow_inconsistency/recreate.py
 
 experiments/rq4_case_study/*mockups
 experiments/rq4_case_study/output
+
+output_images/
+guotai/

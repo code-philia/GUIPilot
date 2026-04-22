@@ -34,91 +34,97 @@ The core GUIPilot module is organized as follows:
 - `/models`: Contains OCR and widget detection models
 
 ## ⚙️ Setup
-### Setup GUIPilot
 
-Clone the repository and follow the steps below:
+### Prerequisites
 
-1. Create a conda environment.
-    ```bash
-    conda env create -f environment.yml
-    conda activate guipilot
-    ```
+- Python 3.12+
+- [uv](https://docs.astral.sh/uv/getting-started/installation/) package manager
+- NVIDIA GPU with CUDA 12.6-compatible driver (driver ≥ 525.85)
 
-2. Install guipilot as a Python package.
-    ```bash
-    pip install .
-    ```
+### Install
+
+```bash
+git clone https://github.com/code-philia/GUIPilot.git
+cd GUIPilot
+uv sync
+```
+
+`uv sync` creates `.venv/` and installs all dependencies, including GPU-enabled builds of PyTorch (cu126) and PaddlePaddle (cu126) from their respective wheel indexes configured in `pyproject.toml`.
+
+GPU setup is fully automatic. `guipilot/__init__.py` pre-loads all NVIDIA CUDA shared libraries from the venv at import time, so torch and paddle find them without any `LD_LIBRARY_PATH` configuration.
 
 ### Setup Experiments
 
-Each directory within `/experiments` includes a `README.md` file that provides detailed instructions on setting up the environment, preparing datasets, and running the experiment.
+Each directory within `/experiments` includes a `README.md` file with instructions for setting up datasets and running the experiment.
 
 ## 🏃 Usage
 
-Refer to [`/experiments/rq1_screen_inconsistency/main.py`](../experiments/rq1_screen_inconsistency/main.py) for a complete working example.
+### Quick start — MVP check on your own image pairs
 
-### Step 1: Load Screenshots as `Screen` Instances
+1. Place your mock/real screenshot pairs in `output_images/`, named `<name>_mock.<ext>` and `<name>_real.<ext>` (e.g. `login_mock.jpg` / `login_real.jpg`).
 
-Each `Screen` instance requires:
+2. Run:
+    ```bash
+    uv run run_checks.py --input output_images/ --output results/
+    ```
 
-* an RGB screenshot (`numpy.ndarray`)
-* a dictionary of widget ID → `Widget` instances (`dict[int, Widget]`)
+3. Results are written to `<output>/`:
+    - `results.csv` — per-pair inconsistency table
+    - `visualizations/<name>.jpg` — side-by-side annotated images (mock | real)
+        - **Green** boxes: matched widget pairs with no inconsistency
+        - **Yellow** boxes: matched pairs with a detected inconsistency
+        - **Red** boxes: unmatched widgets (missing in real / excess in real)
 
-You can either load widgets externally or use GUIPilot’s built-in widget detector.
+The YOLO widget detector weights are downloaded automatically from HuggingFace on first run.
 
-#### Option 1: Load Widgets from JSON
+The OCR language defaults to `ch` (Chinese & English). To change it, set `OCR_LANG` in `.env` or the shell before running. See PaddleOCR documentation on supported languages.
+
+### API usage
+
+Refer to [`/experiments/rq1_screen_inconsistency/main.py`](experiments/rq1_screen_inconsistency/main.py) for a complete working example.
+
+#### Step 1: Load screenshots as `Screen` instances
+
+Each `Screen` instance requires an RGB screenshot (`numpy.ndarray`). Widgets can be loaded from a JSON annotation file or auto-detected.
+
+**Option A — auto-detect with GUIPilot’s built-in models:**
 
 ```python
 import cv2
-import json
+from guipilot.entities import Screen
+
+screenA = Screen(cv2.imread(pathA))
+screenB = Screen(cv2.imread(pathB))
+
+screenA.detect(); screenA.ocr()
+screenB.detect(); screenB.ocr()
+```
+
+**Option B — load widgets from a JSON annotation file:**
+
+```python
+import cv2, json
 from guipilot.entities import Bbox, Widget, WidgetType, Screen
 
-# Load screenshot images
-screenA_image = cv2.imread(screenA_path)
-screenB_image = cv2.imread(screenB_path)
-
-# Load widgets from JSON file
-# Example: [{"type": ..., "bbox": [xmin, ymin, xmax, ymax}, ...]
 def load_widgets(path):
     raw = json.load(open(path, encoding="utf-8"))
     return {
-        id: Widget(type=WidgetType(item["type"]), bbox=Bbox(*item["bbox"]))
-        for id, item in enumerate(raw)
+        i: Widget(type=WidgetType(item["type"]), bbox=Bbox(*item["bbox"]))
+        for i, item in enumerate(raw)
     }
 
-screenA = Screen(screenA_image, load_widgets(widgetsA_path))
-screenB = Screen(screenB_image, load_widgets(widgetsB_path))
+screenA = Screen(cv2.imread(pathA), load_widgets(widgetsA_path))
+screenB = Screen(cv2.imread(pathB), load_widgets(widgetsB_path))
 ```
 
-#### Option 2: Auto-detect Widgets with GUIPilot
-
-```python
-screenA = Screen(screenA_image)
-screenB = Screen(screenB_image)
-
-# Automatically detect widgets and run OCR
-screenA.detect()
-screenA.ocr()
-screenB.detect()
-screenB.ocr()
-```
-
----
-
-### Step 2: Run Widget Matching and Consistency Checking
+#### Step 2: Match widgets and check consistency
 
 ```python
 from guipilot.matcher import GUIPilotV2 as Matcher
 from guipilot.checker import GVT as Checker
 
-matcher = Matcher()
-checker = Checker()
-
-# Match widgets between the two screens
-pairs, _, match_time = matcher.match(screenA, screenB)
-
-# Identify widget-level inconsistencies
-y_pred, check_time = checker.check(screenA, screenB, pairs)
+pairs, _, match_time = Matcher().match(screenA, screenB)
+inconsistencies, check_time = Checker().check(screenA, screenB, pairs)
 ```
 
 ## 📚 Citation

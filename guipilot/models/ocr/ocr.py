@@ -1,4 +1,5 @@
 import base64
+import os
 
 import cv2
 import requests
@@ -11,24 +12,24 @@ class OCR():
         self.service_url = service_url
 
         if service_url is None:
-            self.ocr = PaddleOCR(lang="ch", show_log=False, use_gpu=True)
+            import paddle
+            device = "gpu" if paddle.is_compiled_with_cuda() else "cpu"
+            lang = os.environ.get("OCR_LANG", "ch")
+            self.ocr = PaddleOCR(
+                lang=lang,
+                device=device,
+                use_doc_orientation_classify=False,
+                use_doc_unwarping=False,
+                use_textline_orientation=False,
+            )
 
     def _local(self, image: np.ndarray) -> tuple[list, list]:
         texts, text_bboxes = [], []
-        result = self.ocr.ocr(image, cls=False)
-        for line in result:
-            if not line: continue
-            for word_info in line:
-                bbox = word_info[0]
-                x_coords = [point[0] for point in bbox]
-                y_coords = [point[1] for point in bbox]
-                xmin, xmax = min(x_coords), max(x_coords)
-                ymin, ymax = min(y_coords), max(y_coords)
-                bbox = [xmin, ymin, xmax, ymax]
-                text = word_info[1][0]
+        for page in self.ocr.predict(image):
+            for text, box in zip(page.get("rec_texts", []), page.get("rec_boxes", [])):
+                xmin, ymin, xmax, ymax = int(box[0]), int(box[1]), int(box[2]), int(box[3])
                 texts.append(text)
-                text_bboxes.append(bbox)
-        
+                text_bboxes.append([xmin, ymin, xmax, ymax])
         return texts, text_bboxes
 
     def __call__(self, image: np.ndarray) -> tuple[list, list]:
