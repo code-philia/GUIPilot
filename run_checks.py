@@ -96,6 +96,10 @@ def parse_args() -> argparse.Namespace:
         "--output", required=True, metavar="DIR",
         help="Directory where results.csv, per-pair .txt reports, and visualizations are saved.",
     )
+    parser.add_argument(
+        "--no-match-lines", dest="no_match_lines", action="store_true",
+        help="Disable the thin connector lines drawn between matched widget pairs.",
+    )
     return parser.parse_args()
 
 
@@ -176,7 +180,8 @@ def main():
                 # --- Visualization ---
                 vis_path = os.path.join(visualize_dir, f"{name}.jpg")
                 visualize_inconsistencies(
-                    mock_screen, real_screen, matched_pairs, inconsistencies, vis_path
+                    mock_screen, real_screen, matched_pairs, inconsistencies, vis_path,
+                    draw_match_lines=not args.no_match_lines,
                 )
                 print(f"  saved → {vis_path}")
 

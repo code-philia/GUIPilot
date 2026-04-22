@@ -12,6 +12,7 @@ from guipilot.entities import Screen
 _GREEN  = sv.Color.GREEN   # matched, consistent
 _YELLOW = sv.Color.YELLOW  # matched, inconsistent
 _RED    = sv.Color.RED     # unmatched (missing / excess)
+_GREY   = sv.Color.GREY
 
 _LOOKUP = sv.ColorLookup.INDEX
 
@@ -20,10 +21,11 @@ def _make_annotators(color: sv.Color):
     box = sv.BoxAnnotator(color=color, thickness=2, color_lookup=_LOOKUP)
     label = sv.LabelAnnotator(
         color=color,
-        text_color=sv.Color.WHITE,
+        text_color=sv.Color.BLACK,
         color_lookup=_LOOKUP,
         text_position=sv.Position.TOP_LEFT,
         text_padding=2,
+        text_scale=0.8,
     )
     return box, label
 
@@ -49,12 +51,33 @@ def _hstack(imgs: list[np.ndarray]) -> np.ndarray:
     return np.hstack(padded)
 
 
+def _draw_match_lines(
+    canvas: np.ndarray,
+    s1_bboxes: dict[int, tuple],
+    s2_bboxes: dict[int, tuple],
+    color: sv.Color,
+    s1_width: int,
+) -> np.ndarray:
+    bgr = (color.b, color.g, color.r)
+    for wid, b1 in s1_bboxes.items():
+        if wid not in s2_bboxes:
+            continue
+        b2 = s2_bboxes[wid]
+        cx1 = (b1[0] + b1[2]) // 2
+        cy1 = (b1[1] + b1[3]) // 2
+        cx2 = (b2[0] + b2[2]) // 2 + s1_width
+        cy2 = (b2[1] + b2[3]) // 2
+        cv2.line(canvas, (cx1, cy1), (cx2, cy2), bgr, thickness=1, lineType=cv2.LINE_AA)
+    return canvas
+
+
 def visualize_inconsistencies(
     mock_screen: Screen,
     real_screen: Screen,
     pairs: list[tuple],
     inconsistencies,
     out_path: str,
+    draw_match_lines: bool = True,
 ) -> None:
     """Save a side-by-side annotated image (mock | real).
 
@@ -116,4 +139,12 @@ def visualize_inconsistencies(
 
     import os
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    cv2.imwrite(out_path, _hstack([s1_img, s2_img]))
+    combined = _hstack([s1_img, s2_img])
+    if draw_match_lines:
+        s1_w = s1_img.shape[1]
+        # Build per-widget id→bbox maps keyed by s2 widget id for lookup
+        s2_paired_by_s1   = {id1: s2_paired[id2]   for id1, id2 in pairs if id2 in s2_paired}
+        s2_mismatch_by_s1 = {id1: s2_mismatch[id2] for id1, id2 in pairs if id2 in s2_mismatch}
+        combined = _draw_match_lines(combined, s1_paired,   s2_paired_by_s1,   _GREY,  s1_w)
+        combined = _draw_match_lines(combined, s1_mismatch, s2_mismatch_by_s1, _GREY, s1_w)
+    cv2.imwrite(out_path, combined)
